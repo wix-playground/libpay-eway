@@ -28,7 +28,7 @@ object Endpoints {
   val production = "https://www.eway.com.au"
 }
 
-/** A subclass of the [[PaymentGateway]], for eWay gateway.
+/** A subclass of the `PaymentGateway`, for eWay gateway.
   *
   * @param baseUrl
   *                The base URL for submitting payment request (the url upto the path part; usually includes the
