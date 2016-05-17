@@ -35,7 +35,7 @@ object Endpoints {
   *                protocol, the host and optionally the port)
   * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
   */
-class EwayGateway(baseUrl: String = Endpoints.production, timeout: Duration) extends PaymentGateway {
+class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Duration] = None) extends PaymentGateway {
   implicit val system = ActorSystem()
   import system.dispatcher
 
@@ -47,7 +47,7 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Duration) ext
     val futureResponse = pipeline(Post(url, requestXml))
 
     Try {
-      val response = Await.result(futureResponse, timeout)
+      val response = Await.result(futureResponse, timeout.getOrElse(Duration.Inf))
 
       response match {
         case HasXmlResponse(responseXml) =>
