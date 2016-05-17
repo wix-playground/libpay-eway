@@ -12,22 +12,16 @@ import org.specs2.mutable.SpecWithJUnit
 import org.specs2.specification.Scope
 
 
-/** The Unit-Test class for the [[JsonEwayMerchantParser]] class.
-  *
-  * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
-  */
+/** The Unit-Test class for the [[JsonEwayMerchantParser]] class. */
 class JsonEwayMerchantParserTest extends SpecWithJUnit {
 
   trait Ctx extends Scope {
     val parser = new JsonEwayMerchantParser
-    val customerId = "kuki buki"
-    val refundPwd = "shuki tuki"
   }
-
 
   "stringify and then parse" should {
     "yield a merchant similar to the original one" in new Ctx {
-      val merchant = EwayMerchant(customerId, refundPwd)
+      val merchant = EwayMerchant(customerId = "kuki buki")
       val merchantKey = parser.stringify(merchant)
 
       parser.parse(merchantKey) must be_==(merchant)

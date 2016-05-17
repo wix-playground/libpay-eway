@@ -19,20 +19,16 @@ import org.specs2.mutable.SpecWithJUnit
 import org.specs2.specification.Scope
 import spray.http.StatusCodes
 
-import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success}
 
 
-/** The Integration-Test class of the eWay gateway; validates and specifies eWay gateway integration.
-  *
-  * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
-  */
+/** The Integration-Test class of the eWay gateway; validates and specifies eWay gateway integration. */
 class EwayGatewayIT extends SpecWithJUnit {
   val merchantParser = new JsonEwayMerchantParser()
   val transactionParser = new JsonEwayAuthorizationParser()
   val prob = new EmbeddedHttpProbe(9903, EmbeddedHttpProbe.NotFoundHandler)
-  val someMerchantKey = merchantParser.stringify(EwayMerchant("87654321", "kuki buki"))
-  val someErroneousMerchantKey = merchantParser.stringify(EwayMerchant("erroneous customer", "shuki tuki"))
+  val someMerchantKey = merchantParser.stringify(EwayMerchant(customerId = "87654321"))
+  val someErroneousMerchantKey = merchantParser.stringify(EwayMerchant(customerId = "erroneous customer"))
   val someCurrencyAmount = CurrencyAmount("AUD", 33.3)
   val someNonCvnCreditCard = CreditCard(
     number = "4012888888881881",
@@ -60,7 +56,7 @@ class EwayGatewayIT extends SpecWithJUnit {
   }
 
   trait Ctx extends Scope {
-    val ewayGateway = new EwayGateway("http://localhost:9903", 1.seconds)
+    val ewayGateway = new EwayGateway(baseUrl = "http://localhost:9903")
     prob.reset()
   }
 
@@ -72,7 +68,7 @@ class EwayGatewayIT extends SpecWithJUnit {
   sequential
 
 
-  "authorize request" should {
+  "authorize" should {
     val authorizationKey = transactionKeyFor(someCurrencyAmount)
 
     "successfully yield an authorization key upon valid request (no cvv)" in new Ctx {
@@ -199,7 +195,7 @@ class EwayGatewayIT extends SpecWithJUnit {
   }
 
 
-  "sale request" should {
+  "sale" should {
     val someSaleTransactionId = randomTransactionId()
 
     "successfully yield a transaction key upon valid request (no cvv)" in new Ctx {

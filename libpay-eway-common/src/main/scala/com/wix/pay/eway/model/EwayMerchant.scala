@@ -7,8 +7,5 @@
 package com.wix.pay.eway.model
 
 
-/** A container to hold eWay merchant's credentials.
-  *
-  * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
-  */
-case class EwayMerchant(customerId: String, refundPwd: String)
+/** A container to hold eWay merchant's credentials. */
+case class EwayMerchant(customerId: String)

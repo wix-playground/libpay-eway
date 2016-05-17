@@ -21,8 +21,6 @@ import scala.xml.{Elem, Node, Utility, XML}
 
 /** This class is a driver for eWay gateway tests, introducing a higher lever language for stubbing requests for eWay
   * gateway Http Prob.
-  *
-  * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
   */
 trait EwayGatewayDriver {
 
@@ -54,14 +52,6 @@ trait EwayGatewayDriver {
                                     refAuthorizationKey: Option[String] = None): VoidAuthorizationCtx = {
     new VoidAuthorizationCtx(merchantKey, refAuthorizationKey)
   }
-
-  def aRefundRequestFor(merchantKey: Option[String] = None,
-                        refTransactionId: Option[String] = None,
-                        creditCard: Option[CreditCard] = None,
-                        amount: Option[Double] = None): RefundCtx = {
-    new RefundCtx(merchantKey, refTransactionId, creditCard, amount.map(CurrencyAmount("AUD", _)))
-  }
-
 
   abstract class Ctx(path: String,
                      protected val merchant: Option[EwayMerchant]) {
@@ -346,43 +336,5 @@ trait EwayGatewayDriver {
         "ewayOption1",
         "ewayOption2",
         "ewayOption3")
-  }
-
-
-  class RefundCtx(merchantKey: Option[String],
-                  refTransactionId: Option[String],
-                  creditCard: Option[CreditCard],
-                  currencyAmount: Option[CurrencyAmount]) extends Ctx(
-      "/gateway/xmlpaymentrefund.asp",
-      merchantKey map merchantParser.parse) {
-
-    override protected val isStubbedEntity: Elem => Boolean = requestXml => {
-      val refundPwd = (requestXml \ "ewayRefundPassword").text
-      val ewayOriginalTransactionNum = (requestXml \ "ewayOriginalTrxnNumber").text
-      val expiryMonth = (requestXml \ "ewayCardExpiryMonth").text.toInt
-      val expiryYear = (requestXml \ "ewayCardExpiryYear").text.toInt
-      val totalAmount = (requestXml \ "ewayTotalAmount").text.toInt
-
-      currencyAmount.fold(true) { currAmount =>
-        toEwayAmount(currAmount.amount) == totalAmount && currAmount.currency == "AUD"
-      } && refTransactionId.fold(true)(_ == ewayOriginalTransactionNum) &&
-        merchant.fold(true)(_.refundPwd == refundPwd) &&
-        creditCard.fold(true) { card =>
-          card.expiration.month == expiryMonth &&
-          card.expiration.year % 100 == expiryYear }
-    }
-
-    override protected val mandatoryTags =
-      Seq(
-        "ewayCustomerID",
-        "ewayTotalAmount",
-        "ewayCardExpiryMonth",
-        "ewayCardExpiryYear",
-        "ewayOriginalTrxnNumber",
-        "ewayOption1",
-        "ewayOption2",
-        "ewayOption3",
-        "ewayRefundPassword",
-        "ewayCustomerInvoiceRef")
   }
 }
