@@ -58,7 +58,7 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
           } else {
             val error = (responseXml \ "ewayTrxnError").text
 
-            throw new PaymentRejectedException(s"Error Code: ${error.take(2)}, Error Message: ${error.substring(3)}." )
+            throw PaymentRejectedException(s"Error Code: ${error.take(2)}, Error Message: ${error.substring(3)}." )
           }
 
         case _ => throw PaymentErrorException(s"eWay server returned ${response.status.intValue} status.")
