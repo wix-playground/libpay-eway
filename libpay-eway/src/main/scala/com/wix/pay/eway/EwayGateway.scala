@@ -72,11 +72,13 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
 
   override def authorize(merchantKey: String,
                          creditCard: CreditCard,
-                         currencyAmount: CurrencyAmount,
+                         payment: Payment,
                          customer: Option[Customer],
                          deal: Option[Deal]): Try[String] = {
+    require(payment.installments == 1, "Eway does not support installments")
+
     val merchant = merchantParser.parse(merchantKey)
-    val ewayAmount = toEwayAmount(currencyAmount.amount)
+    val ewayAmount = toEwayAmount(payment.currencyAmount.amount)
     val requestXml =
       <ewaygateway>
         <ewayCustomerID>{merchant.customerId}</ewayCustomerID>
@@ -100,8 +102,8 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
       </ewaygateway>
     val url = s"$baseUrl/${creditCard.csc.fold("gateway/xmlauth.asp")(_ => "gateway_cvn/xmlauth.asp")}"
 
-    if (currencyAmount.currency != "AUD") {
-      Failure(new InvalidCurrencyException(currencyAmount.currency))
+    if (payment.currencyAmount.currency != "AUD") {
+      Failure(new InvalidCurrencyException(payment.currencyAmount.currency))
     } else {
       postRequest(requestXml, url) map { authorizationId =>
         val authorization = EwayAuthorization(authorizationId, ewayAmount)
@@ -131,14 +133,16 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
 
   override def sale(merchantKey: String,
                     creditCard: CreditCard,
-                    currencyAmount: CurrencyAmount,
+                    payment: Payment,
                     customer: Option[Customer],
                     deal: Option[Deal]): Try[String] = {
+    require(payment.installments == 1, "Eway does not support installments")
+
     val merchant = merchantParser.parse(merchantKey)
     val requestXml =
       <ewaygateway>
         <ewayCustomerID>{merchant.customerId}</ewayCustomerID>
-        <ewayTotalAmount>{toEwayAmount(currencyAmount.amount)}</ewayTotalAmount>
+        <ewayTotalAmount>{toEwayAmount(payment.currencyAmount.amount)}</ewayTotalAmount>
         <ewayCustomerFirstName>{customer.fold(""){ _.name.fold("")(_.first)}}</ewayCustomerFirstName>
         <ewayCustomerLastName>{customer.fold(""){ _.name.fold("")(_.last)}}</ewayCustomerLastName>
         <ewayCustomerEmail>{customer.fold("")(_.email.getOrElse(""))}</ewayCustomerEmail>
@@ -158,8 +162,8 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
       </ewaygateway>
     val url = s"$baseUrl/${creditCard.csc.fold("gateway/xmlpayment.asp")(_ => "gateway_cvn/xmlpayment.asp")}"
 
-    if (currencyAmount.currency != "AUD") {
-      Failure(new InvalidCurrencyException(currencyAmount.currency))
+    if (payment.currencyAmount.currency != "AUD") {
+      Failure(new InvalidCurrencyException(payment.currencyAmount.currency))
     } else {
       postRequest(requestXml, url)
     }

@@ -13,7 +13,7 @@ import com.wix.pay.eway.model.Conversions._
 import com.wix.pay.eway.model.parsers.{JsonEwayAuthorizationParser, JsonEwayMerchantParser}
 import com.wix.pay.eway.model.{EwayAuthorization, EwayMerchant}
 import com.wix.pay.eway.testkit.EwayGatewayDriver
-import com.wix.pay.model.{CurrencyAmount, Customer, Name}
+import com.wix.pay.model.{CurrencyAmount, Customer, Name, Payment}
 import com.wix.pay.{PaymentErrorException, PaymentRejectedException}
 import org.specs2.mutable.SpecWithJUnit
 import org.specs2.specification.Scope
@@ -30,6 +30,7 @@ class EwayGatewayIT extends SpecWithJUnit {
   val someMerchantKey = merchantParser.stringify(EwayMerchant(customerId = "87654321"))
   val someErroneousMerchantKey = merchantParser.stringify(EwayMerchant(customerId = "erroneous customer"))
   val someCurrencyAmount = CurrencyAmount("AUD", 33.3)
+  val somePayment = Payment(someCurrencyAmount, 1)
   val someNonCvnCreditCard = CreditCard(
     number = "4012888888881881",
     expiration = YearMonth(2050, 10),
@@ -77,7 +78,7 @@ class EwayGatewayIT extends SpecWithJUnit {
         Some(someCurrencyAmount),
         Some(someNonCvnCreditCard)) returns authorizationKey
 
-      ewayGateway.authorize(someMerchantKey, someNonCvnCreditCard, someCurrencyAmount) must
+      ewayGateway.authorize(someMerchantKey, someNonCvnCreditCard, somePayment) must
         beASuccessfulTry(
           check = ===(authorizationKey)
         )
@@ -89,7 +90,7 @@ class EwayGatewayIT extends SpecWithJUnit {
         Some(someCurrencyAmount),
         Some(someCvnCreditCard)) returns authorizationKey
 
-      ewayGateway.authorize(someMerchantKey, someCvnCreditCard, someCurrencyAmount) must
+      ewayGateway.authorize(someMerchantKey, someCvnCreditCard, somePayment) must
         beASuccessfulTry(
           check = ===(authorizationKey)
         )
@@ -102,7 +103,7 @@ class EwayGatewayIT extends SpecWithJUnit {
         Some(someCvnCreditCard),
         Some(someCustomer)) returns authorizationKey
 
-      ewayGateway.authorize(someMerchantKey, someCvnCreditCard, someCurrencyAmount, Some(someCustomer)) must
+      ewayGateway.authorize(someMerchantKey, someCvnCreditCard, somePayment, Some(someCustomer)) must
         beASuccessfulTry(
           check = ===(authorizationKey)
         )
@@ -117,7 +118,7 @@ class EwayGatewayIT extends SpecWithJUnit {
       ewayGateway.authorize(
         someMerchantKey,
         someFailingCreditCard,
-        someCurrencyAmount) must
+        somePayment) must
           be_==(Failure(PaymentRejectedException("Error Code: 03, Error Message: m3$$age.")))
     }
 
@@ -132,7 +133,7 @@ class EwayGatewayIT extends SpecWithJUnit {
       ewayGateway.authorize(
         someErroneousMerchantKey,
         someFailingCreditCard,
-        someCurrencyAmount) must
+        somePayment) must
           be_==(Failure(PaymentErrorException(s"eWay server returned ${httpStatus.intValue} status.")))
     }
 
@@ -142,7 +143,7 @@ class EwayGatewayIT extends SpecWithJUnit {
       ewayGateway.authorize(
         someErroneousMerchantKey,
         someFailingCreditCard,
-        CurrencyAmount(currency, 33.33)) must be_==(Failure(InvalidCurrencyException(currency)))
+        Payment(CurrencyAmount(currency, 33.33), 1)) must be_==(Failure(InvalidCurrencyException(currency)))
     }
   }
 
@@ -204,7 +205,7 @@ class EwayGatewayIT extends SpecWithJUnit {
         Some(someCurrencyAmount),
         Some(someNonCvnCreditCard)) returns someSaleTransactionId
 
-      ewayGateway.sale(someMerchantKey, someNonCvnCreditCard, someCurrencyAmount) must
+      ewayGateway.sale(someMerchantKey, someNonCvnCreditCard, somePayment) must
         be_===(Success(someSaleTransactionId))
     }
 
@@ -214,7 +215,7 @@ class EwayGatewayIT extends SpecWithJUnit {
         Some(someCurrencyAmount),
         Some(someCvnCreditCard)) returns someSaleTransactionId
 
-      ewayGateway.sale(someMerchantKey, someCvnCreditCard, someCurrencyAmount) must
+      ewayGateway.sale(someMerchantKey, someCvnCreditCard, somePayment) must
         be_===(Success(someSaleTransactionId))
     }
 
@@ -225,7 +226,7 @@ class EwayGatewayIT extends SpecWithJUnit {
         Some(someCvnCreditCard),
         Some(someCustomer)) returns someSaleTransactionId
 
-      ewayGateway.sale(someMerchantKey, someCvnCreditCard, someCurrencyAmount, Some(someCustomer)) must
+      ewayGateway.sale(someMerchantKey, someCvnCreditCard, somePayment, Some(someCustomer)) must
         be_===(Success(someSaleTransactionId))
     }
 
@@ -238,7 +239,7 @@ class EwayGatewayIT extends SpecWithJUnit {
       ewayGateway.sale(
         someMerchantKey,
         someFailingCreditCard,
-        someCurrencyAmount) must
+        somePayment) must
           be_==(Failure(PaymentRejectedException("Error Code: 03, Error Message: m3$$age.")))
     }
 
@@ -253,7 +254,7 @@ class EwayGatewayIT extends SpecWithJUnit {
       ewayGateway.sale(
         someErroneousMerchantKey,
         someFailingCreditCard,
-        someCurrencyAmount) must
+        somePayment) must
           be_==(Failure(PaymentErrorException(s"eWay server returned ${httpStatus.intValue} status.")))
     }
 
@@ -263,7 +264,7 @@ class EwayGatewayIT extends SpecWithJUnit {
       ewayGateway.sale(
         someErroneousMerchantKey,
         someFailingCreditCard,
-        CurrencyAmount(currency, 33.33),
+        Payment(CurrencyAmount(currency, 33.33), 1),
         Some(someCustomer)) must be_==(Failure(InvalidCurrencyException(currency)))
     }
   }
