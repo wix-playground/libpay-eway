@@ -7,26 +7,32 @@
 package com.wix.pay.eway.testkit
 
 
-import com.wix.hoopoe.http.testkit.EmbeddedHttpProbe
+import scala.xml.{Elem, Node, Utility, XML}
+import akka.http.scaladsl.model.StatusCodes.ServerError
+import akka.http.scaladsl.model._
+import com.wix.e2e.http.api.MockWebServer
+import com.wix.e2e.http.client.extractors.HttpMessageExtractors._
+import com.wix.e2e.http.server.WebServerFactory._
 import com.wix.pay.creditcard.CreditCard
 import com.wix.pay.eway.model.Conversions._
 import com.wix.pay.eway.model.EwayMerchant
 import com.wix.pay.eway.model.parsers.{JsonEwayAuthorizationParser, JsonEwayMerchantParser}
 import com.wix.pay.model.{CurrencyAmount, Customer}
-import spray.http.StatusCodes.ServerError
-import spray.http._
-
-import scala.xml.{Elem, Node, Utility, XML}
 
 
 /** This class is a driver for eWay gateway tests, introducing a higher lever language for stubbing requests for eWay
   * gateway Http Prob.
   */
 trait EwayGatewayDriver {
+  def port: Int
+  private val server: MockWebServer = aMockWebServer.onPort(port).build
 
-  def ewayProb: EmbeddedHttpProbe
   val merchantParser = new JsonEwayMerchantParser()
   val transactionParser = new JsonEwayAuthorizationParser()
+
+  def start(): Unit = server.start
+  def stop(): Unit = server.stop
+  def reset(): Unit = server.replaceWith()
 
   def anAuthorizeRequestFor(merchantKey: Option[String] = None,
                             currencyAmount: Option[CurrencyAmount] = None,
@@ -79,7 +85,7 @@ trait EwayGatewayDriver {
       response(Option(errorCode, errorMessage), None)
 
     def returns(transactionKey: String): Unit = {
-      ewayProb.handlers += {
+      server.replaceWith {
         case HttpRequest(
         HttpMethods.POST,
         Uri.Path(`path`),
@@ -93,7 +99,7 @@ trait EwayGatewayDriver {
     }
 
     def rejects(errorCode: String, errorMessage: String): Unit = {
-      ewayProb.handlers += {
+      server.replaceWith {
         case HttpRequest(
         HttpMethods.POST,
         Uri.Path(`path`),
@@ -107,7 +113,7 @@ trait EwayGatewayDriver {
     }
 
     def errors(httpStatus: ServerError): Unit = {
-      ewayProb.handlers += {
+      server.replaceWith {
         case HttpRequest(
         HttpMethods.POST,
         Uri.Path(`path`),
@@ -123,7 +129,7 @@ trait EwayGatewayDriver {
     protected val isStubbedEntity: Elem => Boolean
 
     private def isStubbed(entity: HttpEntity): Boolean = {
-      val requestXml = XML.loadString(entity.asString)
+      val requestXml = XML.loadString(entity.extractAsString)
       val ewayCustomerID = (requestXml \ "ewayCustomerID").text
 
       merchant.fold(true)(_.customerId == ewayCustomerID) && isStubbedEntity(requestXml) &&

@@ -7,21 +7,23 @@
 package com.wix.pay.eway
 
 
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.{Failure, Try}
+import scala.xml.{Elem, XML}
 import akka.actor.ActorSystem
+import akka.http.scaladsl.client.RequestBuilding.Post
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.xml.ScalaXmlSupport._
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 import com.wix.pay.creditcard.CreditCard
 import com.wix.pay.eway.model.Conversions._
 import com.wix.pay.eway.model.EwayAuthorization
 import com.wix.pay.eway.model.parsers.{JsonEwayAuthorizationParser, JsonEwayMerchantParser}
 import com.wix.pay.model._
 import com.wix.pay.{PaymentErrorException, PaymentException, PaymentGateway, PaymentRejectedException}
-import spray.client.pipelining.sendReceive
-import spray.http._
-import spray.httpx.RequestBuilding._
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Try}
-import scala.xml.{Elem, XML}
 
 
 object Endpoints {
@@ -36,14 +38,19 @@ object Endpoints {
   * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
   */
 class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Duration] = None) extends PaymentGateway {
-  implicit val system = ActorSystem()
-  import system.dispatcher
+  private implicit val system: ActorSystem = ActorSystem("akka-http-tokenizer-system")
+  private implicit val executionContext: ExecutionContext = system.dispatcher
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
+  private val http = Http()
 
   val merchantParser = new JsonEwayMerchantParser()
   val authorizationParser = new JsonEwayAuthorizationParser()
 
+
+  private def sendReceive(request: HttpRequest): Future[HttpResponse] = http.singleRequest(request)
+
   private def postRequest(requestXml: Elem, url: String): Try[String] = {
-    val pipeline: HttpRequest => Future[HttpResponse] = sendReceive
+    val pipeline: HttpRequest => Future[HttpResponse] = request => http.singleRequest(request)
     val futureResponse = pipeline(Post(url, requestXml))
 
     Try {
@@ -103,7 +110,7 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
     val url = s"$baseUrl/${creditCard.csc.fold("gateway/xmlauth.asp")(_ => "gateway_cvn/xmlauth.asp")}"
 
     if (payment.currencyAmount.currency != "AUD") {
-      Failure(new InvalidCurrencyException(payment.currencyAmount.currency))
+      Failure(InvalidCurrencyException(payment.currencyAmount.currency))
     } else {
       postRequest(requestXml, url) map { authorizationId =>
         val authorization = EwayAuthorization(authorizationId, ewayAmount)
@@ -163,7 +170,7 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
     val url = s"$baseUrl/${creditCard.csc.fold("gateway/xmlpayment.asp")(_ => "gateway_cvn/xmlpayment.asp")}"
 
     if (payment.currencyAmount.currency != "AUD") {
-      Failure(new InvalidCurrencyException(payment.currencyAmount.currency))
+      Failure(InvalidCurrencyException(payment.currencyAmount.currency))
     } else {
       postRequest(requestXml, url)
     }
@@ -196,7 +203,10 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
   * @author <a href="mailto:ohadr@wix.com">Raz, Ohad</a>
   */
 object HasXmlResponse {
+  private implicit val system: ActorSystem = ActorSystem("akka-http-tokenizer-system")
+  private implicit val materializer: ActorMaterializer = ActorMaterializer()
+
   def unapply(response: HttpResponse): Option[Elem] = {
-    Try(XML.loadString(response.entity.asString)).toOption
+    Try(XML.loadString(Await.result(Unmarshal(response.entity).to[String], Duration.Inf))).toOption
   }
 }

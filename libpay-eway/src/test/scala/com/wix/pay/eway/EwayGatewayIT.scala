@@ -7,7 +7,10 @@
 package com.wix.pay.eway
 
 
-import com.wix.hoopoe.http.testkit.EmbeddedHttpProbe
+import scala.util.{Failure, Random, Success}
+import org.specs2.mutable.SpecWithJUnit
+import org.specs2.specification.Scope
+import akka.http.scaladsl.model.StatusCodes
 import com.wix.pay.creditcard.{CreditCard, CreditCardOptionalFields, YearMonth}
 import com.wix.pay.eway.model.Conversions._
 import com.wix.pay.eway.model.parsers.{JsonEwayAuthorizationParser, JsonEwayMerchantParser}
@@ -15,20 +18,14 @@ import com.wix.pay.eway.model.{EwayAuthorization, EwayMerchant}
 import com.wix.pay.eway.testkit.EwayGatewayDriver
 import com.wix.pay.model.{CurrencyAmount, Customer, Name, Payment}
 import com.wix.pay.{PaymentErrorException, PaymentRejectedException}
-import org.specs2.mutable.SpecWithJUnit
-import org.specs2.specification.Scope
-import spray.http.StatusCodes
-
-import scala.util.{Failure, Random, Success}
 
 
 /** The Integration-Test class of the eWay gateway; validates and specifies eWay gateway integration. */
 class EwayGatewayIT extends SpecWithJUnit {
   val merchantParser = new JsonEwayMerchantParser()
   val transactionParser = new JsonEwayAuthorizationParser()
-  val prob = new EmbeddedHttpProbe(9903, EmbeddedHttpProbe.NotFoundHandler)
-  val someMerchantKey = merchantParser.stringify(EwayMerchant(customerId = "87654321"))
-  val someErroneousMerchantKey = merchantParser.stringify(EwayMerchant(customerId = "erroneous customer"))
+  val someMerchantKey: String = merchantParser.stringify(EwayMerchant(customerId = "87654321"))
+  val someErroneousMerchantKey: String = merchantParser.stringify(EwayMerchant(customerId = "erroneous customer"))
   val someCurrencyAmount = CurrencyAmount("AUD", 33.3)
   val somePayment = Payment(someCurrencyAmount, 1)
   val someNonCvnCreditCard = CreditCard(
@@ -36,11 +33,11 @@ class EwayGatewayIT extends SpecWithJUnit {
     expiration = YearMonth(2050, 10),
     additionalFields = Some(CreditCardOptionalFields.withFields(
       holderName = Some("John Smith"))))
-  val someCvnCreditCard = someNonCvnCreditCard.copy(
+  val someCvnCreditCard: CreditCard = someNonCvnCreditCard.copy(
     additionalFields = Option(
       someNonCvnCreditCard.additionalFields.getOrElse[CreditCardOptionalFields](CreditCardOptionalFields())
         .copy(csc = Option("123"))))
-  val someFailingCreditCard = someNonCvnCreditCard.copy(number = "4012888888882871")
+  val someFailingCreditCard: CreditCard = someNonCvnCreditCard.copy(number = "4012888888882871")
   val someCustomer = Customer(
     name = Some(Name("kuki", "buki")),
     phone = Some("333-333-333"),
@@ -52,18 +49,18 @@ class EwayGatewayIT extends SpecWithJUnit {
     transactionParser.stringify(EwayAuthorization(randomTransactionId(), toEwayAmount(currencyAmount.amount)))
   }
 
-  val driver = new EwayGatewayDriver {
-    override def ewayProb: EmbeddedHttpProbe = prob
+  val driver: EwayGatewayDriver = new EwayGatewayDriver {
+    override def port: Int = 9903
   }
 
   trait Ctx extends Scope {
     val ewayGateway = new EwayGateway(baseUrl = "http://localhost:9903")
-    prob.reset()
+    driver.reset()
   }
 
 
   step {
-    prob.doStart()
+    driver.start()
   }
 
   sequential
@@ -123,7 +120,7 @@ class EwayGatewayIT extends SpecWithJUnit {
     }
 
     "gracefully return an error, upon eway side error" in new Ctx {
-      val httpStatus = StatusCodes.GatewayTimeout
+      val httpStatus: StatusCodes.ServerError = StatusCodes.GatewayTimeout
 
       driver.anAuthorizeRequestFor(
         Some(someErroneousMerchantKey),
@@ -180,7 +177,7 @@ class EwayGatewayIT extends SpecWithJUnit {
     }
 
     "gracefully return an error, upon eWay side error" in new Ctx {
-      val httpStatus = StatusCodes.GatewayTimeout
+      val httpStatus: StatusCodes.ServerError = StatusCodes.GatewayTimeout
 
       driver.aCaptureRequestFor(
         Some(someErroneousMerchantKey),
@@ -244,7 +241,7 @@ class EwayGatewayIT extends SpecWithJUnit {
     }
 
     "gracefully return an error, upon eway side error" in new Ctx {
-      val httpStatus = StatusCodes.GatewayTimeout
+      val httpStatus: StatusCodes.ServerError = StatusCodes.GatewayTimeout
 
       driver.aSaleRequestFor(
         Some(someErroneousMerchantKey),
@@ -297,7 +294,7 @@ class EwayGatewayIT extends SpecWithJUnit {
     }
 
     "gracefully return an error, upon eWay side error" in new Ctx {
-      val httpStatus = StatusCodes.GatewayTimeout
+      val httpStatus: StatusCodes.ServerError = StatusCodes.GatewayTimeout
 
       driver.anVoidAuthorizationRequestFor(
         Some(someErroneousMerchantKey),
@@ -312,6 +309,6 @@ class EwayGatewayIT extends SpecWithJUnit {
 
 
   step {
-    prob.doStop()
+    driver.stop()
   }
 }
