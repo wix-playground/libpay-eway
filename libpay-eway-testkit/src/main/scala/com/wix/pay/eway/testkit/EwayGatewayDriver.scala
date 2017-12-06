@@ -10,7 +10,7 @@ package com.wix.pay.eway.testkit
 import scala.xml.{Elem, Node, Utility, XML}
 import akka.http.scaladsl.model.StatusCodes.ServerError
 import akka.http.scaladsl.model._
-import com.wix.e2e.http.api.MockWebServer
+import com.wix.e2e.http.api.StubWebServer
 import com.wix.e2e.http.client.extractors.HttpMessageExtractors._
 import com.wix.e2e.http.server.WebServerFactory._
 import com.wix.pay.creditcard.CreditCard
@@ -23,9 +23,8 @@ import com.wix.pay.model.{CurrencyAmount, Customer}
 /** This class is a driver for eWay gateway tests, introducing a higher lever language for stubbing requests for eWay
   * gateway Http Prob.
   */
-trait EwayGatewayDriver {
-  def port: Int
-  private val server: MockWebServer = aMockWebServer.onPort(port).build
+class EwayGatewayDriver(port: Int) {
+  private val server: StubWebServer = aStubWebServer.onPort(port).build
 
   val merchantParser = new JsonEwayMerchantParser()
   val transactionParser = new JsonEwayAuthorizationParser()

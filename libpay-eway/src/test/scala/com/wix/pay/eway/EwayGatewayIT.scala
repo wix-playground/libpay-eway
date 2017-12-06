@@ -49,9 +49,7 @@ class EwayGatewayIT extends SpecWithJUnit {
     transactionParser.stringify(EwayAuthorization(randomTransactionId(), toEwayAmount(currencyAmount.amount)))
   }
 
-  val driver: EwayGatewayDriver = new EwayGatewayDriver {
-    override def port: Int = 9903
-  }
+  val driver: EwayGatewayDriver = new EwayGatewayDriver(port = 9903)
 
   trait Ctx extends Scope {
     val ewayGateway = new EwayGateway(baseUrl = "http://localhost:9903")

@@ -47,8 +47,6 @@ class EwayGateway(baseUrl: String = Endpoints.production, timeout: Option[Durati
   val authorizationParser = new JsonEwayAuthorizationParser()
 
 
-  private def sendReceive(request: HttpRequest): Future[HttpResponse] = http.singleRequest(request)
-
   private def postRequest(requestXml: Elem, url: String): Try[String] = {
     val pipeline: HttpRequest => Future[HttpResponse] = request => http.singleRequest(request)
     val futureResponse = pipeline(Post(url, requestXml))
